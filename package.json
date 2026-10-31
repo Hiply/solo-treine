@@ -1,0 +1,15 @@
+{
+  "name": "solo-system-training",
+  "version": "1.2.0",
+  "private": true,
+  "description": "PWA de treino e estudos gamificado com GPS, quests, XP, conta local, som, ranking global, sincronização de dispositivos e análise real com IA.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "jsdom": "^30.1.1"
+  }
+}

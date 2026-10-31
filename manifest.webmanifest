@@ -1,0 +1,19 @@
+{
+  "name": "System Training Protocol",
+  "short_name": "System",
+  "description": "Treino e estudos gamificados com XP, GPS, conta local, nuvem opcional e análise real com IA.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#040914",
+  "theme_color": "#07111f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#080c13" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Solo Treine — Sistema do Caçador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@600;800&family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@500;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="shop.css" />
+  <link rel="stylesheet" href="hud.css" />
+</head>
+
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+  <div id="toastStack" class="toast-stack"></div>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="Solo Treine">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span class="brand-copy"><span class="brand-kicker">JANELA DO SISTEMA</span><strong>SOLO TREINE</strong></span>
+      </div>
+      <div class="top-actions">
+        <span id="connectionStatus" class="status-pill"><i></i> Sistema pronto</span>
+        <span id="syncPill" class="status-pill sync-pill cloud-only">Sem nuvem</span>
+        <span class="coin-wallet" aria-label="Moedas de portal"><span aria-hidden="true">◈</span><b id="coinBalance">0</b></span>
+        <button id="cloudBtn" class="ghost-btn" type="button">Conta</button>
+        <button id="difficultyBtn" class="ghost-btn" type="button" title="Alternar dificuldade">Modo: fiel ao anime</button>
+        <button id="soundBtn" class="icon-btn" type="button" title="Som do sistema" aria-label="Som do sistema">◈</button>
+        <button id="resetBtn" class="ghost-btn" type="button">Resetar</button>
+      </div>
+    </header>
+
+    <div id="authModal" class="auth-screen" aria-hidden="true">
+      <video id="authVideo" class="auth-video" autoplay loop muted playsinline preload="metadata">
+        <source src="assets/fundo-roxo.mp4" type="video/mp4" />
+      </video>
+      <div class="auth-vignette"></div>
+
+      <div class="auth-shell" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <img class="auth-logo" src="assets/solo-treine.png" alt="Solo Treine" />
+        <div class="auth-card">
+          <div class="auth-card-head">
+            <span class="auth-kicker">SISTEMA // ACESSO</span>
+            <button id="authCloseBtn" class="auth-close" type="button" aria-label="Voltar ao sistema">✕</button>
+          </div>
+
+          <h2 id="authTitle">AUTENTICAÇÃO</h2>
+
+          <div id="authModeSwitch" class="auth-switch" role="tablist" aria-label="Entrar ou criar conta">
+            <button id="authModeLogin" class="auth-switch-btn active" type="button" role="tab" aria-selected="true">ENTRAR</button>
+            <button id="authModeSignup" class="auth-switch-btn" type="button" role="tab" aria-selected="false">CRIAR CONTA</button>
+          </div>
+
+          <div id="authProfileBox" class="auth-profile" hidden>
+            <div class="auth-profile-label">JOGADOR CONECTADO</div>
+            <h3 id="authProfileName">—</h3>
+            <p id="authProfileEmail" class="auth-hint"></p>
+            <p id="authProfileCloud" class="auth-hint"></p>
+            <div class="auth-actions">
+              <button id="authExportBtn" class="auth-submit secondary" type="button">EXPORTAR</button>
+              <button id="authImportBtn" class="auth-submit secondary" type="button">IMPORTAR</button>
+            </div>
+            <button id="authSignOutBtn" class="auth-submit" type="button">SAIR</button>
+            <input id="authImportFile" type="file" accept="application/json,.json" hidden />
+          </div>
+
+          <div id="authLocalPanel" class="auth-panel">
+            <p id="authLocalHint" class="auth-hint">Entre com sua conta local. Funciona offline e mantém o progresso neste navegador.</p>
+
+            <div id="authNameGroup" class="auth-field" hidden>
+              <label for="authName">CAÇADOR (NOME):</label>
+              <input id="authName" type="text" placeholder="Digite seu nome..." maxlength="40" autocomplete="nickname" />
+            </div>
+
+            <div class="auth-field">
+              <label for="authEmail">E-MAIL DO CAÇADOR:</label>
+              <input id="authEmail" type="email" placeholder="Seu e-mail cadastrado..." autocomplete="username" />
+            </div>
+
+            <div class="auth-field">
+              <label for="authPassword">SENHA DE ACESSO:</label>
+              <input id="authPassword" type="password" placeholder="Sua senha secreta..." autocomplete="current-password" />
+            </div>
+
+            <button id="authSignInBtn" class="auth-submit" type="button">ENTRAR</button>
+            <button id="authSignUpBtn" class="auth-submit" type="button" hidden>REGISTRAR</button>
+
+            <button id="authTabCloud" class="auth-link" type="button">NUVEM / SINCRONIZAÇÃO</button>
+          </div>
+
+          <div id="authCloudPanel" class="auth-panel" hidden>
+            <p class="auth-hint">Sincronização entre PC e celular via Supabase. Requer um projeto configurado em <code>cloud.js</code> (URL base, sem <code>/rest/v1</code>).</p>
+            <p id="authCloudStatus" class="auth-hint auth-msg"></p>
+
+            <div class="auth-field">
+              <label for="cloudEmail">E-MAIL DA NUVEM:</label>
+              <input id="cloudEmail" type="email" placeholder="email@exemplo.com" autocomplete="username" />
+            </div>
+            <div class="auth-field">
+              <label for="cloudPassword">SENHA DA NUVEM:</label>
+              <input id="cloudPassword" type="password" placeholder="Senha da conta na nuvem" autocomplete="current-password" />
+            </div>
+
+            <button id="cloudSignInBtn" class="auth-submit" type="button">ENTRAR NA NUVEM</button>
+            <button id="cloudSignUpBtn" class="auth-submit secondary" type="button">CRIAR NA NUVEM</button>
+            <button id="cloudHealthBtn" class="auth-link" type="button">TESTAR CONEXÃO</button>
+            <button id="authTabLocal" class="auth-link" type="button">← VOLTAR PARA CONTA LOCAL</button>
+          </div>
+
+          <p id="authMsg" class="auth-msg" role="status"></p>
+
+          <div class="auth-footer">
+            <button id="authMusicBtn" class="auth-link" type="button" data-music-toggle aria-pressed="true">♪ MÚSICA: ON</button>
+            <button id="authBackBtn" class="auth-link" type="button">← VOLTAR AO SISTEMA</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-layout">
+      <nav class="nav-tabs" aria-label="Navegação do sistema">
+        <span class="nav-caption">Painel</span>
+        <button class="tab active" data-tab="overview"><span class="nav-icon">⌂</span><span>Visão geral</span></button>
+        <button class="tab" data-tab="status"><span class="nav-icon">◉</span><span>Status</span></button>
+        <button class="tab" data-tab="quests"><span class="nav-icon">◇</span><span>Missões</span></button>
+        <button class="tab" data-tab="shop"><span class="nav-icon">▣</span><span>Loja</span><span id="shopTabCoins" class="nav-counter">0 ◈</span></button>
+        <span class="nav-caption nav-caption-secondary">Desenvolvimento</span>
+        <button class="tab" data-tab="mentor"><span class="nav-icon">✧</span><span>Mentor IA</span></button>
+        <button class="tab" data-tab="achievements"><span class="nav-icon">✦</span><span>Conquistas</span></button>
+        <button class="tab" data-tab="history"><span class="nav-icon">◷</span><span>Histórico</span></button>
+        <span class="nav-caption nav-caption-secondary">Comunidade</span>
+        <button class="tab" data-tab="ranking"><span class="nav-icon">♜</span><span>Ranking</span></button>
+        <button class="tab" data-tab="sync"><span class="nav-icon">⌁</span><span>Dispositivos</span></button>
+        <div class="nav-footnote"><span class="nav-live-dot"></span><span>Progresso salvo<br />neste dispositivo</span></div>
+      </nav>
+
+      <div class="app-main">
+        <div id="penaltyBanner" class="penalty-banner"></div>
+
+    <section id="tab-overview" class="tab-content active">
+      <header class="page-intro overview-intro">
+        <div><span class="eyebrow">PAINEL DO CAÇADOR <span class="eyebrow-line"></span></span><h1>Visão geral</h1><p>Acompanhe seu despertar, aceite missões e avance no seu próprio ritmo.</p></div>
+        <div class="intro-date"><span class="intro-orb">◈</span><span><b>SEU SISTEMA</b><small>SEMPRE EM EVOLUÇÃO</small></span></div>
+      </header>
+      <section class="hero-grid">
+        <article class="panel player-card glow">
+          <div class="panel-label">SEU DESPERTAR</div>
+          <div class="player-main">
+            <div class="rank-badge"><span id="levelBadge">01</span><small>LVL</small></div>
+            <div class="player-info"><span class="muted">CAÇADOR</span>
+              <h2 id="playerName">Jogador despertado</h2>
+              <div class="class-line"><span id="className">E-RANK</span><span>•</span><span id="xpLabel">0 / 100
+                  XP</span></div>
+            </div>
+          </div>
+          <div class="xp-track">
+            <div id="xpBar" class="xp-fill"></div>
+          </div>
+          <div class="xp-meta"><span>XP PARA O PRÓXIMO NÍVEL</span><b id="xpPercent">0%</b></div>
+          <div class="stat-grid mini">
+            <div class="stat"><span>STR</span><b id="strStat">10</b><button data-stat="str">+</button></div>
+            <div class="stat"><span>VIT</span><b id="vitStat">10</b><button data-stat="vit">+</button></div>
+            <div class="stat"><span>AGI</span><b id="agiStat">10</b><button data-stat="agi">+</button></div>
+            <div class="stat"><span>END</span><b id="endStat">10</b><button data-stat="end">+</button></div>
+          </div>
+          <div class="points-row"><span>PONTOS DISPONÍVEIS</span><strong id="statPoints">0</strong></div>
+        </article>
+
+        <article class="panel mission-summary glow">
+          <div class="panel-label">PROTOCOLO DIÁRIO</div>
+          <div class="quest-head">
+            <div><span class="mission-kicker">MISSÃO DE HOJE</span>
+              <h2>Corpo de ferro</h2>
+              <p>Flexões, abdominais, agachamentos e corrida. Ignorar gera penalidade do Sistema.</p>
+            </div>
+            <div class="reward-chip" id="dailyQuestStatus">EM ANDAMENTO</div>
+          </div>
+          <div id="dailyQuest" class="daily-quest-grid"></div>
+          <div class="mission-footer">
+            <div><span id="missionStatus" class="cyan">Pronto para começar</span><small id="streakText">SEQUÊNCIA: 0
+                DIAS</small></div><button id="startBtn" class="primary-btn">Começar treino</button>
+          </div>
+          <div class="quest-rewards">
+            <div><span>PORTAIS LIMPOS</span><b id="gatesCleared">0</b></div>
+            <div><span>PROVAÇÃO ATIVA</span><b id="trialStatusMini">—</b></div>
+            <div><span>RECOMPENSA</span><b>XP variável</b></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel map-panel">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">CAMPO DE TREINO</div>
+              <h2>Rota de treino</h2>
+            </div>
+            <div id="liveIndicator" class="live-indicator"><span class="pulse"></span> Em repouso</div>
+          </div>
+          <div id="map"></div>
+          <div class="map-toolbar"><button id="centerBtn" class="tool-btn">Centralizar no jogador</button><button
+              id="clearRouteBtn" class="tool-btn">Limpar rota</button></div>
+          <div class="map-stats">
+            <div><span>DISTÂNCIA</span><b id="mapDistance">0.00 km</b></div>
+            <div><span>RITMO</span><b id="pace">—</b></div>
+            <div><span>DECORRIDO</span><b id="elapsed">00:00</b></div>
+            <div><span>PONTOS GPS</span><b id="points">0</b></div>
+          </div>
+        </article>
+        <aside class="side-column">
+          <article class="panel quick-panel">
+            <div class="panel-heading">
+              <div>
+                <div class="panel-label">PROGRESSO DO JOGADOR</div>
+              <h2>Seu progresso</h2>
+              </div>
+            </div>
+            <div class="metric-list">
+              <div><span>TOTAL DE DISTÂNCIA</span><b id="totalDistance">0.00 km</b></div>
+              <div><span>DIAS DE TREINO</span><b id="trainingDays">0</b></div>
+              <div><span>MAIOR SEQUÊNCIA</span><b id="longestRun">0.00 km</b></div>
+              <div><span>TOTAL DE XP</span><b id="totalXp">0 XP</b></div>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <div class="panel-label">PROVAÇÃO DE ASCENSÃO</div>
+                <h2>Provação de ascensão</h2>
+              </div>
+            </div>
+            <div id="trialPanel"></div>
+          </article>
+          <article class="panel mentor-mini">
+            <div class="panel-heading">
+              <div>
+                <div class="panel-label">MENTOR DO SISTEMA</div>
+                <h2>Prontidão de hoje</h2>
+              </div><span id="miniReadiness" class="count-badge">—</span>
+            </div>
+            <div class="mini-progress"><span id="miniReadinessBar" style="width:0%"></span></div>
+            <p id="miniInsight" class="muted-note" style="margin-top:9px">Registre sono, estudo e treino para receber sua análise.</p>
+            <button id="miniMentorBtn" class="tool-btn" style="margin-top:10px">Ver análise do mentor</button>
+          </article>
+        </aside>
+      </section>
+    </section>
+
+    <section id="tab-status" class="tab-content">
+      <header class="page-intro"><div><span class="eyebrow">PERFIL DO CAÇADOR <span class="eyebrow-line"></span></span><h1>Status</h1><p>Nível, atributos e classificação atual do seu personagem.</p></div></header>
+      <div class="dashboard-grid">
+        <article class="panel big-card">
+          <div class="panel-label">JANELA DE STATUS</div>
+          <div class="status-title">
+            <div class="status-icon">◎</div>
+            <div>
+              <h2 id="statusClass">E-RANK</h2>
+              <p>PERFIL DO JOGADOR // CONSTRUÇÃO DE TREINO</p>
+            </div>
+          </div>
+          <div class="detail-grid">
+            <div><span>NÍVEL</span><b id="detailLevel">1</b></div>
+            <div><span>XP</span><b id="detailXp">0</b></div>
+            <div><span>PONTOS DE ATRIBUTO</span><b id="detailPoints">0</b></div>
+            <div><span>TOTAL DE XP</span><b id="detailTotalXp">0</b></div>
+            <div><span>SEQUÊNCIA</span><b id="detailStreak">0</b></div>
+            <div><span>MISSÕES CONCLUÍDAS</span><b id="detailQuests">0</b></div>
+          </div>
+        </article>
+        <article class="panel big-card">
+          <div class="panel-label">ATRIBUTOS</div>
+          <div id="attributeList" class="attribute-list"></div>
+        </article>
+        <article class="panel full-panel rank-progress-panel">
+          <div class="panel-heading"><div><div class="panel-label">CAMINHO DO DESPERTAR</div><h2>Escalada de ranks</h2></div><span class="count-badge">E → S</span></div>
+          <div id="rankLadder" class="rank-ladder"></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="tab-mentor" class="tab-content">
+      <header class="page-intro"><div><span class="eyebrow">ANÁLISE PESSOAL <span class="eyebrow-line"></span></span><h1>Mentor do sistema</h1><p>Conecte sono, estudos e treino para entender seu ritmo.</p></div></header>
+      <div class="mentor-grid">
+        <article class="panel mentor-hero">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">MENTOR DO SISTEMA // ACOMPANHAMENTO REAL</div>
+              <h2>DIAGNÓSTICO DE ESTUDOS E TREINOS</h2>
+            </div>
+            <button id="aiSettingsBtn" class="tool-btn" title="Configurar provedor de IA">⚙ CONFIGURAR IA</button>
+          </div>
+          <div class="score-grid">
+            <div class="score-ring" id="scoreReadiness" style="--val:0">
+              <div><b>0</b><small>PRONTIDÃO</small></div>
+            </div>
+            <div class="score-ring" id="scoreStudy" style="--val:0">
+              <div><b>0</b><small>ESTUDO</small></div>
+            </div>
+            <div class="score-ring" id="scoreTraining" style="--val:0">
+              <div><b>0</b><small>TREINO</small></div>
+            </div>
+            <div class="score-ring" id="scoreBalance" style="--val:0">
+              <div><b>0</b><small>EQUILÍBRIO</small></div>
+            </div>
+          </div>
+          <div class="ai-meta">
+            <span id="aiProviderLabel" class="status-pill">LOCAL (OFFLINE)</span>
+            <span id="aiGeneratedAt" class="muted-note"></span>
+          </div>
+          <div id="aiNarrative" class="ai-narrative"></div>
+          <div class="ai-actions">
+            <button id="aiAnalyzeBtn" class="primary-btn">◈ GERAR ANÁLISE COM IA</button>
+            <button id="aiLocalBtn" class="ghost-btn">RECALCULAR ANÁLISE LOCAL</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">CHECK-IN DIÁRIO</div>
+              <h2>SONO, HUMOR E ENERGIA</h2>
+            </div>
+          </div>
+          <form id="checkinForm" class="sys-form">
+            <label>HORAS DE SONO
+              <input id="checkinSleep" type="number" min="0" max="14" step="0.5" placeholder="8" />
+            </label>
+            <label>HUMOR
+              <select id="checkinMood">
+                <option value="1">1 · muito baixo</option>
+                <option value="2">2 · baixo</option>
+                <option value="3" selected>3 · neutro</option>
+                <option value="4">4 · bom</option>
+                <option value="5">5 · ótimo</option>
+              </select>
+            </label>
+            <label>ENERGIA
+              <select id="checkinEnergy">
+                <option value="1">1 · esgotado</option>
+                <option value="2">2 · baixa</option>
+                <option value="3" selected>3 · normal</option>
+                <option value="4">4 · alta</option>
+                <option value="5">5 · máxima</option>
+              </select>
+            </label>
+            <button class="primary-btn" type="submit">REGISTRAR CHECK-IN</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">REGISTRO REAL</div>
+              <h2>NOVA SESSÃO</h2>
+            </div>
+          </div>
+          <form id="sessionForm" class="sys-form">
+            <label>TIPO
+              <select id="sessionType">
+                <option value="study">ESTUDO</option>
+                <option value="workout">TREINO</option>
+              </select>
+            </label>
+            <label data-study-only>MATÉRIA
+              <input id="sessionSubject" type="text" placeholder="Ex.: Matemática" maxlength="60" />
+            </label>
+            <label data-study-only>TÓPICO
+              <input id="sessionTopic" type="text" placeholder="Ex.: Funções quadráticas" maxlength="80" />
+            </label>
+            <label data-workout-only>ATIVIDADE
+              <select id="sessionActivity">
+                <option>Força – empurrar</option>
+                <option>Força – puxar</option>
+                <option>Pernas</option>
+                <option>Core e mobilidade</option>
+                <option>Cardio leve</option>
+                <option>Esporte</option>
+                <option>Outro</option>
+              </select>
+            </label>
+            <label>DURAÇÃO (MIN)
+              <input id="sessionMinutes" type="number" min="1" max="600" placeholder="30" required />
+            </label>
+            <label data-study-only>FOCO
+              <input id="sessionFocus" type="range" min="1" max="5" value="3" />
+              <span id="sessionFocusLabel" class="range-label">3/5</span>
+            </label>
+            <label data-workout-only>INTENSIDADE
+              <input id="sessionIntensity" type="range" min="1" max="5" value="3" />
+              <span id="sessionIntensityLabel" class="range-label">3/5</span>
+            </label>
+            <label>OBSERVAÇÕES
+              <textarea id="sessionNotes" rows="2" maxlength="300" placeholder="Opcional"></textarea>
+            </label>
+            <button class="primary-btn" type="submit">REGISTRAR SESSÃO</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">CRONÔMETRO</div>
+              <h2>TEMPO REAL</h2>
+            </div>
+          </div>
+          <div id="timerDisplay" class="timer-display">00:00</div>
+          <div class="timer-actions">
+            <button id="timerStartBtn" class="primary-btn">INICIAR</button>
+            <button id="timerPauseBtn" class="tool-btn">PAUSAR</button>
+            <button id="timerResetBtn" class="tool-btn">ZERAR</button>
+            <button id="timerUseBtn" class="tool-btn">USAR NO REGISTRO</button>
+          </div>
+          <p class="muted-note" style="margin-top:10px">O cronômetro preenche a duração da sessão. O tempo só conta enquanto estiver rodando.</p>
+        </article>
+
+        <article class="panel mentor-insights">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">INSIGHTS</div>
+              <h2>O QUE O SISTEMA DETECTOU</h2>
+            </div>
+          </div>
+          <div id="aiInsights"></div>
+        </article>
+
+        <article class="panel mentor-plan">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">PRÓXIMOS 7 DIAS</div>
+              <h2>PLANO RECOMENDADO</h2>
+            </div>
+          </div>
+          <div id="aiPlan"></div>
+        </article>
+
+        <article class="panel full-panel mentor-sessions">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">HISTÓRICO REAL</div>
+              <h2>SESSÕES REGISTRADAS</h2>
+            </div><span id="sessionCount" class="count-badge">0</span>
+          </div>
+          <div id="sessionList" class="session-list"></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="tab-ranking" class="tab-content">
+      <header class="page-intro"><div><span class="eyebrow">CAÇADORES <span class="eyebrow-line"></span></span><h1>Ranking</h1><p>Veja sua evolução ao lado de outros jogadores.</p></div></header>
+      <div class="ranking-grid">
+        <article class="panel ranking-hero">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">MULTIPLAYER // CLASSIFICAÇÃO GLOBAL</div>
+              <h2>COMPARE SEU RANK COM O MUNDO</h2>
+            </div>
+            <span id="leaderboardStatus" class="status-pill sync-pill">MODO LOCAL</span>
+          </div>
+          <div class="ranking-topline">
+            <div id="leaderboardPodium" class="podium"></div>
+            <div class="ranking-my-card">
+              <div class="panel-label">SUA POSIÇÃO</div>
+              <div id="myRankPosition" class="my-rank-position">—</div>
+              <h3 id="myRankName">JOGADOR</h3>
+              <p id="myRankLevel" class="muted-note">LVL 1 · E-RANK</p>
+              <div class="my-rank-stats">
+                <div><span>XP TOTAL</span><b id="myRankXp">0</b></div>
+                <div><span>STREAK</span><b id="myRankStreak">0</b></div>
+                <div><span>ESTUDO 7D</span><b id="myRankStudy">0</b></div>
+                <div><span>TREINO 7D</span><b id="myRankTraining">0</b></div>
+              </div>
+            </div>
+          </div>
+          <p id="leaderboardNote" class="muted-note"></p>
+          <div class="ranking-actions">
+            <button id="rankingSyncBtn" class="primary-btn">PUBLICAR MEU RANK</button>
+            <button id="rankingRefreshBtn" class="ghost-btn">ATUALIZAR</button>
+            <span class="muted-note">Atualizado: <b id="leaderboardUpdatedAt">—</b></span>
+          </div>
+        </article>
+
+        <article class="panel ranking-identity">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">IDENTIDADE PÚBLICA</div>
+              <h2>NOME NO RANKING</h2>
+            </div>
+          </div>
+          <label class="sys-label">NOME EXIBIDO
+            <input id="rankingName" class="sys-input" maxlength="32" placeholder="Seu codinome de caçador" />
+          </label>
+          <label class="check-line"><input id="rankingOptIn" type="checkbox" checked /> Participar do ranking global</label>
+          <button id="rankingSaveBtn" class="primary-btn">SALVAR IDENTIDADE</button>
+          <p class="muted-note">O ranking real usa a nuvem (Supabase). Sem nuvem configurada, a lista abaixo é uma simulação local e nada é enviado.</p>
+        </article>
+
+        <article class="panel ranking-help">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">COMO FUNCIONA</div>
+              <h2>RANKING ONLINE</h2>
+            </div>
+          </div>
+          <div class="ranking-help-list">
+            <div><b>1 · Conta na nuvem</b><span>Entre pela aba NUVEM. Cada conta publica apenas a própria linha.</span></div>
+            <div><b>2 · Tabela leaderboard</b><span>Rode o <code>supabase-schema.sql</code> no SQL Editor do Supabase.</span></div>
+            <div><b>3 · Atualização</b><span>Seu rank é publicado ao abrir esta aba e após registrar sessões.</span></div>
+            <div><b>4 · Privacidade</b><span>Você escolhe o codinome e pode sair do ranking quando quiser.</span></div>
+          </div>
+        </article>
+
+        <article class="panel full-panel ranking-list-panel">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">CLASSIFICAÇÃO</div>
+              <h2>TOP JOGADORES</h2>
+            </div>
+            <div class="ranking-badges">
+              <span id="leaderboardMode" class="count-badge local">SIMULAÇÃO LOCAL</span>
+              <span id="leaderboardCount" class="count-badge">0</span>
+            </div>
+          </div>
+          <div id="leaderboardList" class="leaderboard-list"></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="tab-sync" class="tab-content">
+      <header class="page-intro"><div><span class="eyebrow">DADOS DE TREINO <span class="eyebrow-line"></span></span><h1>Dispositivos</h1><p>Conecte sensores ou importe atividades para completar seu registro.</p></div></header>
+      <div class="sync-grid">
+        <article class="panel sync-hero">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">DEVICE SYNC // RELÓGIO E SENSORES</div>
+              <h2>SINCRONIZAÇÃO AUTOMÁTICA</h2>
+            </div>
+            <span id="syncStatus" class="status-pill">PRONTO</span>
+          </div>
+          <div class="sync-status-grid">
+            <div><span>ÚLTIMA SINCRONIZAÇÃO</span><b id="syncLastAt">—</b></div>
+            <div><span>FONTE</span><b id="syncLastSource">—</b></div>
+            <div><span>DISPOSITIVO</span><b id="bleName">Nenhum dispositivo</b></div>
+            <div><span>STATUS BLE</span><b id="bleStatus">DESCONECTADO</b></div>
+          </div>
+          <div class="ble-live">
+            <div class="ble-hr"><b id="bleHr">—</b><small>BPM AO VIVO</small></div>
+            <div class="ble-metrics">
+              <div><span>MÉDIA</span><b id="bleAvg">—</b></div>
+              <div><span>MÍNIMA</span><b id="bleMin">—</b></div>
+              <div><span>MÁXIMA</span><b id="bleMax">—</b></div>
+              <div><span>ZONA</span><b id="bleZone">—</b></div>
+              <div><span>AMOSTRAS</span><b id="bleSamples">0</b></div>
+              <div><span>DURAÇÃO</span><b id="bleElapsed">00:00</b></div>
+            </div>
+          </div>
+          <div class="sync-actions">
+            <button id="bleConnectBtn" class="primary-btn">CONECTAR FREQUÊNCIA CARDÍACA</button>
+            <button id="bleDisconnectBtn" class="ghost-btn" disabled>DESCONECTAR</button>
+          </div>
+          <p id="bleSupport" class="muted-note"></p>
+        </article>
+
+        <article class="panel sync-import">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">IMPORTAÇÃO UNIVERSAL</div>
+              <h2>ARQUIVO DO RELÓGIO</h2>
+            </div>
+          </div>
+          <div id="deviceDrop" class="drop-zone">
+            <b>ARRASTE O ARQUIVO AQUI</b>
+            <span>GPX · TCX · CSV · JSON</span>
+            <button id="deviceImportBtn" class="tool-btn" type="button">ESCOLHER ARQUIVO</button>
+          </div>
+          <input id="deviceFile" type="file"
+            accept=".gpx,.tcx,.csv,.json,.txt,application/json,text/csv,application/gpx+xml,application/xml" hidden />
+          <p id="importSummary" class="muted-note">Exporte o treino/saúde do app do relógio e importe aqui. O Sistema reconhece GPX/TCX de treinos e CSV/JSON de passos, sono, calorias e FC.</p>
+          <div class="import-help">
+            <div><b>Garmin / Coros / Polar</b><span>GPX ou TCX do treino</span></div>
+            <div><b>Apple Saúde / Samsung / Xiaomi</b><span>CSV/JSON exportado</span></div>
+            <div><b>Cinta peitoral / relógio</b><span>Web Bluetooth (FC ao vivo)</span></div>
+          </div>
+        </article>
+
+        <article class="panel sync-today">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">SAÚDE DE HOJE</div>
+              <h2>DADOS RECEBIDOS</h2>
+            </div><button id="deviceRefreshBtn" class="tool-btn">ATUALIZAR</button>
+          </div>
+          <div class="health-today-grid">
+            <div><span>PASSOS</span><b id="healthTodaySteps">—</b></div>
+            <div><span>CALORIAS</span><b id="healthTodayCalories">—</b></div>
+            <div><span>SONO</span><b id="healthTodaySleep">—</b></div>
+            <div><span>FC REPOUSO</span><b id="healthTodayRestingHr">—</b></div>
+            <div><span>FC MÉDIA</span><b id="healthTodayAvgHr">—</b></div>
+            <div><span>FONTE</span><b id="healthTodaySource">—</b></div>
+          </div>
+        </article>
+
+        <article class="panel sync-week">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">ÚLTIMOS 7 DIAS</div>
+              <h2>PASSOS · KCAL · SONO · FC</h2>
+            </div>
+          </div>
+          <div id="healthWeek" class="health-week"></div>
+        </article>
+
+        <article class="panel full-panel sync-sessions">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">ORIGEM DOS DADOS</div>
+              <h2>TREINOS IMPORTADOS</h2>
+            </div>
+          </div>
+          <div id="deviceSessions"></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="tab-quests" class="tab-content">
+      <header class="page-intro"><div><span class="eyebrow">ORDENS DO SISTEMA <span class="eyebrow-line"></span></span><h1>Missões</h1><p>Conclua objetivos para ganhar experiência e abrir novos caminhos.</p></div></header>
+      <article class="panel full-panel quest-board-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="panel-label">OBJETIVOS AUXILIARES</div>
+            <h2>Quadro de missões</h2>
+          </div><span id="missionCount" class="count-badge">0/3</span>
+        </div>
+        <div id="missions" hidden></div>
+        <div id="questArchive" class="quest-archive"></div>
+      </article>
+    </section>
+
+    <section id="tab-shop" class="tab-content">
+      <header class="page-intro"><div><span class="eyebrow">RECOMPENSAS DE PORTAL <span class="eyebrow-line"></span></span><h1>Arsenal</h1><p>Use suas moedas para montar seu equipamento de caçador.</p></div></header>
+      <div class="shop-layout">
+        <article class="panel shop-character-panel">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">EQUIPAMENTO DO CAÇADOR</div>
+              <h2>AVATAR</h2>
+            </div>
+            <span id="avatarRank" class="shop-rank-pill">E-RANK</span>
+          </div>
+          <div class="character-preview">
+            <div class="shop-avatar-stage">
+              <img id="shopAvatar" src="assets/shop/avatar-hunter.png" alt="Avatar do caçador" />
+              <span id="shopAvatarFallback" class="avatar-fallback" aria-hidden="true" hidden>◈</span>
+              <div class="avatar-caption"><b id="shopCharacterName">JOGADOR DESPERTADO</b><span>CAÇADOR</span></div>
+            </div>
+            <div class="equipment-panel">
+              <div class="panel-label">ITENS EQUIPADOS</div>
+              <div id="equipmentSlots" class="equipment-slots"></div>
+            </div>
+          </div>
+          <p class="muted-note shop-note">Compre equipamentos e equipe um item por espaço. Os itens S e MONARCA só liberam após limpar portais desses ranks.</p>
+        </article>
+
+        <article class="panel shop-market-panel">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">MERCADO DO SISTEMA</div>
+              <h2>LOJA DE ITENS</h2>
+            </div>
+            <div class="shop-balance"><span>SALDO</span><b id="shopCoins">0 ◈</b></div>
+          </div>
+          <div id="shopGateStatus" class="shop-gate-status"></div>
+          <div id="shopGrid" class="shop-grid" aria-live="polite"></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="tab-achievements" class="tab-content">
+      <header class="page-intro"><div><span class="eyebrow">MARCOS DA JORNADA <span class="eyebrow-line"></span></span><h1>Conquistas</h1><p>Registre os feitos que marcam sua evolução.</p></div></header>
+      <article class="panel full-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="panel-label">SISTEMA DE CONQUISTAS</div>
+            <h2>DESBLOQUEADAS E OCULTAS</h2>
+          </div><span id="achievementCount" class="count-badge">0/11</span>
+        </div>
+        <div id="achievements" class="achievement-grid"></div>
+      </article>
+    </section>
+
+    <section id="tab-history" class="tab-content">
+      <header class="page-intro"><div><span class="eyebrow">REGISTRO DO SISTEMA <span class="eyebrow-line"></span></span><h1>Histórico</h1><p>Revise as sessões e os acontecimentos da sua jornada.</p></div></header>
+      <div class="history-grid">
+        <article class="panel full-panel">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">HISTÓRICO DE TREINO</div>
+              <h2>REGISTROS DA SESSÃO</h2>
+            </div>
+          </div>
+          <div id="historyList" class="history-list"></div>
+        </article>
+        <article class="panel full-panel">
+          <div class="panel-heading">
+            <div>
+              <div class="panel-label">CARGA SEMANAL</div>
+              <h2>ÚLTIMOS 7 DIAS</h2>
+            </div>
+          </div>
+          <div id="weekChart" class="week-chart"></div>
+        </article>
+        <article class="panel full-panel log-panel">
+          <div class="panel-heading"><div><div class="panel-label">ATIVIDADE RECENTE</div><h2>Eventos do sistema</h2></div></div>
+          <div id="systemLog" class="system-log"></div>
+        </article>
+      </div>
+    </section>
+
+      </div>
+    </div>
+    <footer>Solo Treine · sistema de treino e estudos · progresso salvo no dispositivo · sincronização opcional</footer>
+  </main>
+
+  <div id="aiSettingsModal" class="modal-overlay">
+    <div class="modal-box ai-settings-box">
+      <div class="modal-head">
+        <h2>CONFIGURAR IA</h2><button id="aiSettingsCloseBtn" class="icon-btn">✕</button>
+      </div>
+          <p class="muted-note">A análise local funciona sem chave e offline. Para usar IA externa sem pagar, escolha Groq (plano gratuito), crie uma chave em <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">console.groq.com/keys</a>, cole no campo CHAVE DE API e use Salvar e Testar. O plano gratuito tem limites de uso; não habilite um plano pago.</p>
+      <label class="sys-label">PROVEDOR
+        <select id="aiPreset" class="sys-input">
+          <option value="groq">Groq (gratuito, com limites)</option>
+          <option value="openai">OpenAI (uso pago/variável)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="ollama">Ollama local</option>
+          <option value="server">Servidor do app (proxy)</option>
+        </select>
+      </label>
+      <label class="sys-label">URL BASE
+        <input id="aiBaseUrl" class="sys-input" placeholder="https://api.openai.com/v1" />
+      </label>
+      <label class="sys-label">MODELO
+        <input id="aiModel" class="sys-input" placeholder="gpt-4o-mini" />
+      </label>
+      <label class="sys-label">CHAVE DE API
+        <input id="aiApiKey" type="password" class="sys-input" placeholder="sk-..." autocomplete="off" />
+      </label>
+      <p class="muted-note">A chave fica salva apenas neste navegador (localStorage). Em produção, prefira o proxy do
+        servidor com a variável <code>AI_API_KEY</code>.</p>
+      <div class="modal-actions">
+        <button id="aiSaveBtn" class="primary-btn">SALVAR</button>
+        <button id="aiTestBtn" class="ghost-btn">TESTAR</button>
+        <button id="aiClearBtn" class="ghost-btn">LIMPAR</button>
+      </div>
+      <p id="aiSettingsMsg" class="muted-note"></p>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="sound.js"></script>
+  <script src="music.js"></script>
+  <script src="app.js"></script>
+  <script src="shop.js"></script>
+  <script src="ai.js"></script>
+  <script src="mentor.js"></script>
+  <script src="cloud-config.js"></script>
+  <script src="cloud.js"></script>
+  <script src="leaderboard.js"></script>
+  <script src="device.js"></script>
+  <script src="auth.js"></script>
+</body>
+
+</html>

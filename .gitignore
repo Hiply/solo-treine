@@ -1,0 +1,14 @@
+# Local runtime and deployment caches
+node_modules/
+.wrangler/
+.cloudflare/
+
+# Local exports and generated scratch files
+/output/
+/tmp/
+/files.zip
+
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
